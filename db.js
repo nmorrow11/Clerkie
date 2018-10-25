@@ -27,7 +27,7 @@ const accountSchema = mongoose.Schema({
 
 const Account = mongoose.model('Account', accountSchema);
 
-var selectAll = function(user, date, callback) {
+const selectAll = function(user, date, callback) {
   Account.findOne({userID:user}, function(err, accounts) {
   	let lastDate = moment(date).subtract(1, 'years');
   	let lastYearTransactions = accounts.transactions.filter(function(ele) {
@@ -43,9 +43,24 @@ var selectAll = function(user, date, callback) {
   });
 };
 
+const updateDB = function (user, transaction, callback) {
+	let userID = user;
+	console.log(transaction);
+	Account.findOneAndUpdate({userID: userID}, { $push: { transactions: transaction } }, {upsert:true},
+		function(err) {
+			if(err) {
+				console.log(err)
+			} else{
+				console.log('DB updated')
+			}
+		});
+	
+}
+
 //going to export methods for selecting all transaction from a user for 1 year previous to a date
 //a seperate method to save transactions to a model
 //a way to change non recurring transactions to recurring transactions
 
 
 module.exports.selectAll = selectAll;
+module.exports.updateDB = updateDB;
