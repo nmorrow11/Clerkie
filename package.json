@@ -1,0 +1,26 @@
+{
+  "name": "clerkie",
+  "version": "1.0.0",
+  "description": "recurring transactions",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nmorrow11/Clerkie.git"
+  },
+  "author": "Nicholas Morrow",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nmorrow11/Clerkie/issues"
+  },
+  "homepage": "https://github.com/nmorrow11/Clerkie#readme",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "express": "^4.16.4",
+    "moment": "^2.22.2",
+    "mongoose": "^5.3.6"
+  }
+}
