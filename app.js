@@ -24,7 +24,8 @@ app.get('/', function(req, res){
 	    	let rightPrice = filterByPrice(allRecurring, 10); //10 needs to be the price of the recurring transaction in question
 	      	let rightDate = filterByDate(rightPrice, date)
 	      	let rightName = filterByName(rightDate, name);
-	      	res.json(rightName);
+	      	let nextOccurance = getNextOccurance(rightName, {transID:6, name:'netflix6', amount: 10.97, date:"2018-05-01T08:00:00.000Z"})
+	      	res.json(nextOccurance);
 	    }
 	})
 })
@@ -87,7 +88,6 @@ function filterByDate(array, date) {
 	let yearDiff = [363,364,365,366,367];
 	dateMatch = array.filter(function(ele) {
 		let transDate = moment(ele.date);
-		console.log(start.diff(transDate, 'days'))
 		if(dayDiff.indexOf(start.diff(transDate, 'days')) !== -1) {
 			return true;
 		} else if (dayDiff.indexOf(start.diff(transDate, 'days') % 30) !== -1) {
@@ -123,6 +123,33 @@ function getNextOccurance(array, transaction) {
 	following way [name,user_id, next_amt, next_date, [all previous instances of this recurring
 	transaction]]
 	*/
+	if(array.length < 2) {
+		return [];
+	}
+	let amountSum = 0;
+	let dateSum = 0;
+	let transSum = 0;
+	let len = array.length;
+	let date = moment(transaction.date);
+	console.log(array, 'ayyyyyy')
+	for(let i = 0; i < len; i++) {
+		amountSum += array[i].amount;
+		transSum +=array[i].transID;
+		let thisDate = moment(array[i].date);
+		if(i !== len - 1) {
+			let nextDate = moment(array[i + 1].date);
+			dateSum += moment(nextDate.diff(thisDate, 'days'));
+		} else {
+			dateSum += moment(date.diff(thisDate, 'days'));
+		}
+	}
+	let futureDate = moment(date).add(dateSum / len, 'days');
+	return {transID: Math.round(transSum / len) + transaction.transID,
+			name: transaction.name,
+			amount: amountSum / len,
+			date: futureDate,
+			isRecurring: true
+	}
 }
 
 
