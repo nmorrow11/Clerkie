@@ -21,6 +21,7 @@
     "body-parser": "^1.18.3",
     "express": "^4.16.4",
     "moment": "^2.22.2",
-    "mongoose": "^5.3.6"
+    "mongoose": "^5.3.6",
+    "string-similarity": "^2.0.0"
   }
 }

@@ -2,6 +2,7 @@ const express = require('express');
 const storedAccounts = require('./db');
 const bodyParser = require('body-parser');
 const moment = require('moment');
+const stringSimilarity = require('string-similarity');
 const app = express();
 const port = 1984;
 
@@ -11,8 +12,9 @@ app.use(bodyParser.json());
 app.get('/', function(req, res){
 	// let newTransactions = req.body;
 	// console.log(newTransactions);
-	let user = 3;//will come from post /req.body
+	let user = 4;//will come from post /req.body
 	let date = "2018-05-01T08:00:00.000Z"//will come from req.body
+	let name = "netflix"//will come from req.body
 	storedAccounts.selectAll(user, date, function(err, data) {
 	    if(err) {
 	    	res.sendStatus(500);
@@ -21,7 +23,8 @@ app.get('/', function(req, res){
 	    	let allNonRecurring = nonRecurringTransactionList(data);
 	    	let rightPrice = filterByPrice(allRecurring, 10); //10 needs to be the price of the recurring transaction in question
 	      	let rightDate = filterByDate(rightPrice, date)
-	      	res.json(rightDate);
+	      	let rightName = filterByName(rightDate, name);
+	      	res.json(rightName);
 	    }
 	})
 })
@@ -84,11 +87,12 @@ function filterByDate(array, date) {
 	let yearDiff = [363,364,365,366,367];
 	dateMatch = array.filter(function(ele) {
 		let transDate = moment(ele.date);
-		if(dayDiff.indexOf(transDate.diff(start, 'days')) !== -1) {
+		console.log(start.diff(transDate, 'days'))
+		if(dayDiff.indexOf(start.diff(transDate, 'days')) !== -1) {
 			return true;
-		} else if (dayDiff.indexOf(transDate.diff(start, 'days') % 30) !== -1) {
+		} else if (dayDiff.indexOf(start.diff(transDate, 'days') % 30) !== -1) {
 			return true;
-		} else if(yearDiff.indexOf(transDate.diff(start, 'days')) !== -1) {
+		} else if(yearDiff.indexOf(start.diff(transDate, 'days')) !== -1) {
 			return true;
 		}
 
@@ -101,6 +105,15 @@ function filterByName(array, name) {
 	transaction whose recurrability is in question. after removing all characters except for
 	letters if the names match the transaction is saved all others are discarded
 	*/
+	let nameMatch = [];
+	nameMatch = array.filter(function(ele) {
+		let value = stringSimilarity.compareTwoStrings(name, ele.name);
+		if(value > 0.55) {
+			return true;
+		}
+	});
+	return nameMatch;
+
 }
 
 function getNextOccurance(array, transaction) {
