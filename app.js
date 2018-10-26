@@ -1,6 +1,7 @@
 const express = require('express');
 const storedAccounts = require('./db');
 const upsert = require('./db');
+const changeToRecurringDB = require('./db');
 const bodyParser = require('body-parser');
 const moment = require('moment');
 const app = express();
@@ -10,45 +11,43 @@ app.use(bodyParser.urlencoded({extended:true}));
 app.use(bodyParser.json());
 
 app.get('/', function(req, res) {
-	// let newTransactions = req.body;
-	// console.log(newTransactions);
-	let user = 5;//will come from post /req.body
-	let date = "2018-05-01T08:00:00.000Z"//will come from req.body
-	let name = "netflix"//will come from req.body
+	let user = 6;//will come from req.url maybe
+	let date = "2018-05-01T08:00:00.000Z"//will come from req.url
+	let name = "netflix"//will come from req.url
 	storedAccounts.selectAll(user, date, function(err, data) {
 	    if(err) {
 	    	res.sendStatus(500);
 	    } else {
 	    	let allRecurring = separateTransactionList(data)[0];
 	    	let allNonRecurring = separateTransactionList(data)[1];
-	    	console.log(allRecurring, allNonRecurring)
 	    	let rightPrice = filterByPrice(allRecurring, 10); //10 needs to be the price of the recurring transaction in question
 	      	let rightDate = filterByDate(rightPrice, date)
 	      	let rightName = filterByName(rightDate, name);
-	      	let nextOccurance = getNextOccurance(rightName, user, {transID:6, name:'netflix 6', amount: 10.97, date:"2018-05-01T08:00:00.000Z"})
-	      	// TODO: this is weird. where do you add the new transaction to one of the recurring transactions?
-	      	// they even talk about a "recurring transaction group" but you don't have that anywhere
+	      	let nextOccurance = predictNextTransaction(rightName, user, {transID:6, name:'netflix 6', amount: 10.97, date:"2018-05-01T08:00:00.000Z"})
+	      	// TODO: this is weird. need to add the new transaction to one of the recurring transactions
+	      	// they even talk about a "recurring transaction group" but i don't have that anywhere
 	      	res.json(nextOccurance);
 	    }
-	})
-})
+	});
+});
 
 app.post('/', function(req, res) {
-	let tran = {"transID":14,"name":"bobs","amount":20.99,"date":"2018-11-01T08:00:00.000Z","isRecurring":true};
-	let user = 7;
-	upsert.updateDB(user, tran,
+
+	let transactionsArray = req.body.transactions
+	let user = req.body.userID;
+	upsert.updateDB(user, transactionsArray,
 		function(err, data) {
 			if(err) {
 	    		res.sendStatus(500);
 	    	} else {
-	    		console.log('dbupdate')
+	    		console.log(data)
 	    	}
-		})
-})
+		});
+});
 
 app.listen(port, function(){
 	console.log('listening on port ', port);
-})
+});
 
 function separateTransactionList(array) {
 	/* input list of all transactions for a user:
@@ -64,13 +63,11 @@ function separateTransactionList(array) {
 		return(!ele.isRecurring);
 	});
 	return [recurringTrans, nonRecurringTrans];
-
 }
 
 function filterByPrice(array, price) {
-	/* input is an array of possible recurring transactions and a price
-	to see if the transaction is part of the recurring transactions we will
-	see if the price is similar if it the transaction is added to an array which is output
+	/* will check to see if any elements in the array are at the same price area
+	as our transaction is. if they are they are stored in an array and passed on
 	*/
 	let priceMatch = [];
 	priceMatch = array.filter(function(ele) {
@@ -79,14 +76,10 @@ function filterByPrice(array, price) {
 		}
 	});
 	return priceMatch;
-
 }
 
 function filterByDate(array, date) {
-	/* this function is going to receive an array of transactions and the date for the
-	transaction whose recurrability is in question. if any transaction happened 7, 14, 30,
-	120, 180, 365 days previously that transaction is kept all others will be filtered out
-	*/
+	// will check to see if a transaction occured at a set interval against an array of transactions
 	let startDate = moment(date);
 	let dateMatch = [];
 	let dayDiff = [0,1,2,3,7,14,27,28,29,30];
@@ -102,13 +95,12 @@ function filterByDate(array, date) {
 		}
 
 	});
-	return dateMatch
+	return dateMatch;
 }
 
 function filterByName(array, name) {
-	/* this function is going to receive an array of transactions and the name for the
-	transaction whose recurrability is in question. after removing all characters except for
-	letters if the names match the transaction is saved all others are discarded
+	/* breaks a name into substrings and checks to see if the array has any similar
+	substrings inside and of its elements names
 	*/
 	let nameMatch = [];
 	let nameSegements = name.toLowerCase().split(' ')
@@ -121,16 +113,13 @@ function filterByName(array, name) {
 		}
 	});
 	return nameMatch;
-
 }
 
-function getNextOccurance(array, user, transaction) {
-	/*this function is going to receive a transaction and the transactions who appear to make it
-	recurring. here we will calculate when the next occurance of the transaction will be and
-	estimate the amount the transaction will be for this function will return an object shaped the
-	following way [name,user_id, next_amt, next_date, [all previous instances of this recurring
-	transaction]]
+function predictNextTransaction(array, user, transaction) {
+	/*takes in a transaction and an array of its recurring transaction group
+	returns part of the output for the user
 	*/
+	console.log(array, user, transaction)
 	if(array.length < 2) {
 		return [];
 	}
@@ -149,23 +138,28 @@ function getNextOccurance(array, user, transaction) {
 		}
 	}
 	let futureDate = moment(date).add(dateSum / len, 'days');
-	// TODO: these don't match the spec
-	return {name: transaction.name,
+	let groupedRecurringTransaction =
+		{name: transaction.name,
 			userID: user,
-			next_amount: amountSum / len,
+			next_amount: (amountSum / len).toFixed(2),
 			next_date: futureDate,
 			isRecurring: true,
 			transactions: array,
+		};
+		console.log(groupedRecurringTransaction)
+	if(!array[0].isRecurring) {
+		for(let i = 0; i < array.length; i++) {
+			array[i].isRecurring = true;
+		}
+		changeToRecurring(groupedRecurringTransaction);
 	}
+	return groupedRecurringTransaction;
 }
 
-
-
-
-
-
-
-
+function changeToRecurring(obj) {
+	//this function saves former non recurring transactions into recurring ones
+	changeToRecurringDB.changeToRecurring(obj.userID, obj.transactions);
+}
 
 
 

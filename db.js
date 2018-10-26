@@ -13,7 +13,6 @@ db.once('open', function() {
   console.log('mongoose connected successfully');
 });
 
-
 const accountSchema = mongoose.Schema({
 	userID: Number,
 	transactions: [{
@@ -21,7 +20,8 @@ const accountSchema = mongoose.Schema({
 		name: String,
 		amount: Number,
 		date: Date,
-		isRecurring: Boolean
+		isRecurring: Boolean,
+		recurringTransactionGroup: Number,
 	}]
 });
 
@@ -45,22 +45,27 @@ const selectAll = function(user, date, callback) {
 
 const updateDB = function (user, transaction, callback) {
 	let userID = user;
-	console.log(transaction);
 	Account.findOneAndUpdate({userID: userID}, { $push: { transactions: transaction } }, {upsert:true},
-		function(err) {
+		function(err, account) {
 			if(err) {
-				console.log(err)
+				callback(err, null);
 			} else{
-				console.log('DB updated')
+				callback(null, account);
 			}
 		});
-	
-}
+};
 
-//going to export methods for selecting all transaction from a user for 1 year previous to a date
-//a seperate method to save transactions to a model
-//a way to change non recurring transactions to recurring transactions
-
+const changeToRecurring = function (userID, array) {
+	Account.findOneAndUpdate({userID: userID}, {transactions: array},
+		function(err, account) {
+			if(err) {
+				callback(err, null);
+			} else {
+				console.log('DB updated!!');
+			}
+		});
+};
 
 module.exports.selectAll = selectAll;
 module.exports.updateDB = updateDB;
+module.exports.changeToRecurring = changeToRecurring;
